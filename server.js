@@ -105,7 +105,7 @@ const COLORS = ["white","black","yellow","brown"];
 
 wss.on("connection", (ws, req) => {
   const url = new URL(req.url, "http://localhost");
-  const roomId = url.searchParams.get("room") || "main";
+  const roomId = "main";
   const room = getOrCreateRoom(roomId);
 
   if (room.gameState) {
