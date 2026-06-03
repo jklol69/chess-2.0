@@ -142,7 +142,7 @@ let legalMoves = [];
 function joinGame() {
   const name = document.getElementById("name-input").value.trim() || "Mängija";
   const proto = location.protocol === "https:" ? "wss" : "ws";
-  const url = `${proto}://${RENDER_HOST}`;
+  const url = `${proto}://${RENDER_HOST}?room=${ROOM_ID}`;
   ws = new WebSocket(url);
 
   ws.onopen = () => ws.send(JSON.stringify({ type: "join", name }));
