@@ -116,7 +116,7 @@
 // Pärast Render deployd asenda see oma Render URL-iga
 // Näiteks: "dual-kingdom-chess.onrender.com"
 const RENDER_HOST = "chess-2-0.onrender.com";
-const ROOM_ID = new URLSearchParams(location.search).get("room") || "main";
+const url = `wss://${RENDER_HOST}`;
 // ────────────────────────────────────────────────────────────────
 
 const COLORS = ["white","black","yellow","brown"];
