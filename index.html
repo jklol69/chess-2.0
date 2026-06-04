@@ -1,3 +1,4 @@
+ML
 <!DOCTYPE html>
 <html lang="et">
 <head>
@@ -9,16 +10,41 @@
   body { font-family: system-ui, sans-serif; background: #1a1a1a; color: #eee; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 16px; }
   h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
   .subtitle { font-size: 13px; color: #888; margin-bottom: 16px; }
-  #lobby, #game { width: 100%; max-width: 860px; }
+ 
+  /* ── LOBBY ── */
   #lobby { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-top: 60px; }
   #lobby input { background: #2a2a2a; border: 1px solid #444; color: #eee; padding: 10px 16px; border-radius: 8px; font-size: 15px; width: 260px; outline: none; }
   #lobby input:focus { border-color: #888; }
   #lobby button { background: #eee; color: #111; border: none; padding: 10px 28px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
   #lobby button:hover { background: #fff; }
-  #players-waiting { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
-  .wait-slot { padding: 6px 14px; border-radius: 20px; font-size: 13px; border: 1px solid #444; color: #888; }
-  .wait-slot.filled { color: #eee; border-color: #888; }
-  #game { display: none; flex-direction: column; align-items: center; gap: 10px; }
+ 
+  /* ── WAITING ROOM ── */
+  #waiting { display: none; flex-direction: column; align-items: center; gap: 14px; margin-top: 40px; width: 100%; max-width: 560px; }
+  #waiting h2 { font-size: 16px; font-weight: 600; color: #ccc; }
+  .wait-info { font-size: 13px; color: #888; }
+ 
+  /* Assignment table */
+  #assignment-panel { width: 100%; background: #2a2a2a; border-radius: 10px; padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+  #assignment-panel h3 { font-size: 13px; color: #aaa; font-weight: 500; margin-bottom: 2px; }
+  .color-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid #333; }
+  .color-row:last-child { border-bottom: none; }
+  .color-swatch-label { display: flex; align-items: center; gap: 8px; width: 90px; font-size: 13px; font-weight: 600; }
+  .cswatch { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .color-row select { flex: 1; background: #1a1a1a; color: #eee; border: 1px solid #444; border-radius: 6px; padding: 5px 8px; font-size: 13px; outline: none; cursor: pointer; }
+  .color-row select:focus { border-color: #888; }
+ 
+  #start-btn { background: #5aa85a; color: #fff; border: none; padding: 10px 32px; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; }
+  #start-btn:hover { background: #6bc46b; }
+  #start-btn:disabled { background: #3a5a3a; color: #777; cursor: not-allowed; }
+  .admin-badge { font-size: 11px; background: #f0c030; color: #111; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+  #waiting-players-list { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .wplayer { display: flex; align-items: center; gap: 8px; background: #2a2a2a; border-radius: 6px; padding: 7px 12px; font-size: 13px; }
+  .wplayer .badge { font-size: 11px; padding: 1px 7px; border-radius: 10px; }
+  .badge-admin { background: #f0c030; color: #111; }
+  .badge-you  { background: #444; color: #ccc; }
+ 
+  /* ── GAME ── */
+  #game { display: none; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 860px; }
   #status-bar { width: 100%; display: flex; align-items: center; gap: 10px; padding: 8px 14px; background: #2a2a2a; border-radius: 8px; font-size: 13px; flex-wrap: wrap; }
   #turn-dots { display: flex; gap: 6px; }
   .tdot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid transparent; transition: all 0.2s; }
@@ -31,7 +57,6 @@
   .cell { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
   .cell.L { background: #f0d9b5; }
   .cell.D { background: #b58863; }
-
   .cell.sel { background: #5aa85a !important; }
   .cell.mv::after { content:''; width:13px; height:13px; background:rgba(0,0,0,0.22); border-radius:50%; position:absolute; pointer-events:none; }
   .cell.mv.hp::after { display:none; }
@@ -67,15 +92,48 @@
 <body>
 <h1>♟ Dual Kingdom Chess</h1>
 <p class="subtitle">2v2 · 16×8 · Hele tiim vs Tume tiim</p>
-
+ 
+<!-- Step 1: enter name -->
 <div id="lobby">
   <div style="font-size:13px;color:#888;">Sisesta nimi ja liitu mänguga</div>
   <input id="name-input" type="text" placeholder="Sinu nimi" maxlength="16" />
   <button onclick="joinGame()">Liitu mänguga</button>
-  <div id="players-waiting"></div>
   <div style="font-size:12px;color:#555;margin-top:8px">Jaga sama URL-i sõpradega</div>
 </div>
-
+ 
+<!-- Step 2: waiting room / assignment -->
+<div id="waiting">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <h2>Ootaruum</h2>
+    <span id="room-link-btn" onclick="copyLink()" style="font-size:12px;color:#888;cursor:pointer;text-decoration:underline;">🔗 kopeeri link</span>
+  </div>
+  <div id="waiting-players-list"></div>
+ 
+  <!-- Admin sees assignment panel -->
+  <div id="assignment-panel" style="display:none;">
+    <h3>Määra värvid mängijatele</h3>
+    <div class="color-row">
+      <div class="color-swatch-label"><div class="cswatch" style="background:#f0f0f0;border:1px solid #aaa"></div>Valge</div>
+      <select id="sel-0" onchange="sendAssign()"><option value="">— määramata —</option></select>
+    </div>
+    <div class="color-row">
+      <div class="color-swatch-label"><div class="cswatch" style="background:#333;border:1px solid #888"></div>Must</div>
+      <select id="sel-1" onchange="sendAssign()"><option value="">— määramata —</option></select>
+    </div>
+    <div class="color-row">
+      <div class="color-swatch-label"><div class="cswatch" style="background:#f0c030;border:1px solid #b8960a"></div>Kollane</div>
+      <select id="sel-2" onchange="sendAssign()"><option value="">— määramata —</option></select>
+    </div>
+    <div class="color-row">
+      <div class="color-swatch-label"><div class="cswatch" style="background:#8B4513;border:1px solid #3a1a00"></div>Pruun</div>
+      <select id="sel-3" onchange="sendAssign()"><option value="">— määramata —</option></select>
+    </div>
+    <button id="start-btn" disabled onclick="startGame()">Alusta mängu</button>
+  </div>
+  <div id="non-admin-wait" style="display:none;font-size:13px;color:#888;">Admin seadistab värvid, oota...</div>
+</div>
+ 
+<!-- Step 3: game -->
 <div id="game">
   <div id="status-bar">
     <div id="turn-dots"></div>
@@ -90,7 +148,7 @@
     <button onclick="copyLink()">🔗 Kopeeri link</button>
   </div>
 </div>
-
+ 
 <div class="overlay" id="overlay">
   <div class="overlay-box">
     <h2 id="ov-title">Mäng läbi!</h2>
@@ -98,19 +156,18 @@
     <button onclick="document.getElementById('overlay').classList.remove('show')">Sulge</button>
   </div>
 </div>
-
+ 
 <script>
 const RENDER_HOST = "chess-2-0.onrender.com";
 const ROOM_ID = new URLSearchParams(location.search).get("room") || "main";
-
+ 
 const COLORS = ["white","black","yellow","brown"];
 const COLOR_NAMES = ["Valge","Must","Kollane","Pruun"];
 const TEAMS = ["Hele tiim","Tume tiim","Hele tiim","Tume tiim"];
 const SWATCHES = ["#f0f0f0","#333","#f0c030","#8B4513"];
 const SWATCH_BORDERS = ["#aaa","#888","#b8960a","#3a1a00"];
-// Team mates: white(0)<->yellow(2), black(1)<->brown(3)
 const TEAMMATE = [2,3,0,1];
-
+ 
 const PIECE_GLYPHS = {
   white: {K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙"},
   black: {K:"♚",Q:"♛",R:"♜",B:"♝",N:"♞",P:"♟"},
@@ -123,15 +180,31 @@ const PIECE_COLOR_CSS = {
   yellow: "color:#f5d000;text-shadow:0 0 2px #000,0 0 4px #000;",
   brown:  "color:#d4956a;text-shadow:0 0 2px #000,0 0 4px #000;",
 };
-
+ 
 let ws = null;
-let myColorIndex = -1;
+let myId = -1;
+let myIsAdmin = false;
 let gameState = null;
-let serverPlayers = [null,null,null,null];
+let serverPlayers = [];   // [{id, name, isAdmin, colors:[0,2]}]
+let assignments = {};     // {colorIndex: playerId}
 let selected = null;
 let legalMoves = [];
 let hasMoved = {};
-
+ 
+// My color indices = all colorIndices assigned to me
+function getMyColorIndices() {
+  return Object.entries(assignments)
+    .filter(([,id])=>id===myId)
+    .map(([ci])=>parseInt(ci));
+}
+function getMyColors() {
+  const base = getMyColorIndices().map(i=>COLORS[i]);
+  if(gameState) getMyColorIndices().forEach(ci=>{
+    if(gameState.inherited[ci]) base.push(gameState.inherited[ci]);
+  });
+  return base;
+}
+ 
 function joinGame() {
   const name = document.getElementById("name-input").value.trim() || "Mängija";
   const proto = location.protocol === "https:" ? "wss" : "ws";
@@ -141,61 +214,123 @@ function joinGame() {
   ws.onerror = () => setMsg("Viga ühenduses.");
   ws.onclose = () => setMsg("Ühendus katkes. Lae leht uuesti.");
 }
-
+ 
 function handleServer(msg) {
   if (msg.type === "error") { alert(msg.message); return; }
+ 
   if (msg.type === "joined") {
-    myColorIndex = msg.colorIndex;
+    myId = msg.id;
+    myIsAdmin = msg.isAdmin;
+    assignments = msg.assignments || {};
+    serverPlayers = msg.players || [];
     document.getElementById("lobby").style.display = "none";
-    document.getElementById("game").style.display = "flex";
-    const yc = document.getElementById("your-color");
-    yc.textContent = COLOR_NAMES[myColorIndex];
-    yc.style.background = SWATCHES[myColorIndex];
-    yc.style.color = (myColorIndex===0||myColorIndex===2) ? "#111" : "#eee";
+    document.getElementById("waiting").style.display = "flex";
+    renderWaiting();
+    if(msg.gameState) {
+      gameState = msg.gameState;
+      hasMoved = msg.hasMoved || {};
+      showGame();
+    }
   }
-  if (msg.type === "waiting" || msg.type === "players") {
+ 
+  if (msg.type === "players") {
     serverPlayers = msg.players || serverPlayers;
+    assignments = msg.assignments || assignments;
     renderWaiting();
   }
-  if (msg.type === "start") {
-    hasMoved = {};
+ 
+  if (msg.type === "start" || msg.type === "state") {
     gameState = msg.state;
     serverPlayers = msg.players || serverPlayers;
-    selected = null; legalMoves = [];
-    renderBoard(); renderPlayers(); renderStatus();
-  }
-  if (msg.type === "state") {
-    gameState = msg.state;
-    serverPlayers = msg.players || serverPlayers;
+    assignments = msg.assignments || assignments;
     if (msg.hasMoved) hasMoved = msg.hasMoved;
     selected = null; legalMoves = [];
+    showGame();
     renderBoard(); renderPlayers(); renderStatus();
   }
+ 
   if (msg.type === "gameover") showOverlay("Mäng läbi!", msg.winner);
 }
-
+ 
+function showGame() {
+  document.getElementById("waiting").style.display = "none";
+  document.getElementById("game").style.display = "flex";
+  // Show my colors in badge
+  const myCI = getMyColorIndices();
+  const yc = document.getElementById("your-color");
+  if(myCI.length > 0) {
+    yc.textContent = myCI.map(i=>COLOR_NAMES[i]).join(" + ");
+    yc.style.background = SWATCHES[myCI[0]];
+    yc.style.color = (myCI[0]===0||myCI[0]===2) ? "#111" : "#eee";
+  }
+  renderBoard(); renderPlayers(); renderStatus();
+}
+ 
 function renderWaiting() {
-  const el = document.getElementById("players-waiting"); el.innerHTML = "";
-  for (let i = 0; i < 4; i++) {
-    const d = document.createElement("div");
-    d.className = "wait-slot" + (serverPlayers[i] ? " filled" : "");
-    d.style.borderColor = serverPlayers[i] ? SWATCH_BORDERS[i] : "#444";
-    d.textContent = serverPlayers[i] ? `${COLOR_NAMES[i]}: ${serverPlayers[i].name}` : `${COLOR_NAMES[i]}: ootab...`;
-    el.appendChild(d);
+  // Players list
+  const list = document.getElementById("waiting-players-list"); list.innerHTML = "";
+  serverPlayers.forEach(p => {
+    const d = document.createElement("div"); d.className = "wplayer";
+    const badges = [];
+    if(p.isAdmin) badges.push(`<span class="badge badge-admin">admin</span>`);
+    if(p.id === myId) badges.push(`<span class="badge badge-you">sina</span>`);
+    d.innerHTML = `<span style="flex:1">${p.name}</span>${badges.join('')}`;
+    list.appendChild(d);
+  });
+ 
+  if(myIsAdmin) {
+    document.getElementById("assignment-panel").style.display = "flex";
+    document.getElementById("non-admin-wait").style.display = "none";
+    renderAssignmentSelects();
+  } else {
+    document.getElementById("assignment-panel").style.display = "none";
+    document.getElementById("non-admin-wait").style.display = "block";
   }
 }
-
-// ── CHESS LOGIC ──────────────────────────────────────────────────
+ 
+function renderAssignmentSelects() {
+  for(let ci=0; ci<4; ci++) {
+    const sel = document.getElementById(`sel-${ci}`);
+    const prev = assignments[ci] ?? "";
+    sel.innerHTML = `<option value="">— määramata —</option>`;
+    serverPlayers.forEach(p => {
+      const opt = document.createElement("option");
+      opt.value = p.id;
+      opt.textContent = p.name + (p.id===myId ? " (sina)" : "");
+      if(p.id == prev) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+  // Enable start only if all 4 assigned
+  const allSet = [0,1,2,3].every(ci => assignments[ci] !== undefined && assignments[ci] !== "");
+  document.getElementById("start-btn").disabled = !allSet;
+}
+ 
+function sendAssign() {
+  const newAssign = {};
+  for(let ci=0; ci<4; ci++) {
+    const v = document.getElementById(`sel-${ci}`).value;
+    if(v !== "") newAssign[ci] = parseInt(v);
+    else delete newAssign[ci];
+  }
+  // Update local immediately for button state
+  assignments = newAssign;
+  const allSet = [0,1,2,3].every(ci => assignments[ci] !== undefined);
+  document.getElementById("start-btn").disabled = !allSet;
+  ws.send(JSON.stringify({type:"assign", assignments: newAssign}));
+}
+ 
+function startGame() {
+  ws.send(JSON.stringify({type:"start"}));
+}
+ 
+// ── CHESS LOGIC (unchanged) ──────────────────────────────────────
 function inBounds(r,c){return r>=0&&r<8&&c>=0&&c<16;}
 function cloneBoard(brd){return brd.map(row=>row.map(c=>c?{...c}:null));}
-
-// Which colors are on the same team as `color`?
 function teamColors(color) {
-  // white+yellow = team 0, black+brown = team 1
   if (color==="white"||color==="yellow") return ["white","yellow"];
   return ["black","brown"];
 }
-
 function getRawMoves(r, c, brd) {
   const piece = brd[r][c]; if (!piece) return [];
   const {type, color} = piece; const moves = [];
@@ -228,33 +363,28 @@ function getRawMoves(r, c, brd) {
   else if(type==='K'){[[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([dr,dc])=>add(r+dr,c+dc));}
   return moves;
 }
-
 function findKing(color, brd) {
   for(let r=0;r<8;r++) for(let c=0;c<16;c++)
     if(brd[r][c]&&brd[r][c].type==='K'&&brd[r][c].color===color) return [r,c];
   return null;
 }
-
-// Is `color`'s king attacked by an ENEMY (not teammate) piece?
 function isInCheck(color, brd) {
   const kp = findKing(color, brd); if(!kp) return false;
   const myTeam = teamColors(color);
   for(let r=0;r<8;r++) for(let c=0;c<16;c++) {
     const p = brd[r][c];
-    if(!p || myTeam.includes(p.color)) continue; // skip own team
+    if(!p || myTeam.includes(p.color)) continue;
     const ms = getRawMoves(r,c,brd);
     if(ms.some(([mr,mc])=>mr===kp[0]&&mc===kp[1])) return true;
   }
   return false;
 }
-
 function getCastleMoves(r, c, brd, movedSet) {
   const piece = brd[r][c];
   if(!piece||piece.type!=='K') return [];
   if(movedSet[`${r},${c}`]) return [];
   if(isInCheck(piece.color, brd)) return [];
   const color = piece.color;
-  const myTeam = teamColors(color);
   const result = [];
   for(let rc=0;rc<16;rc++) {
     const rook = brd[r][rc];
@@ -273,8 +403,6 @@ function getCastleMoves(r, c, brd, movedSet) {
   }
   return result;
 }
-
-// No check filtering — moves are free, tuli is display only
 function getLegalMoves(r, c, brd, movedSet) {
   const piece = brd[r][c]; if(!piece) return [];
   const raw = getRawMoves(r,c,brd).map(to=>({to, castle:false}));
@@ -283,42 +411,44 @@ function getLegalMoves(r, c, brd, movedSet) {
   }
   return raw;
 }
-
-function getMyColors() {
-  if(myColorIndex<0) return [];
-  const cols = [COLORS[myColorIndex]];
-  if(gameState&&gameState.inherited[myColorIndex]) cols.push(gameState.inherited[myColorIndex]);
-  return cols;
-}
-
+ 
 function currentTurn() {
   if(!gameState) return -1;
   let idx=gameState.turnIndex%4, t=0;
   while(gameState.eliminated[idx]&&t<4){idx=(idx+1)%4;t++;}
   return idx;
 }
-function isMyActualTurn(){return gameState&&currentTurn()===myColorIndex;}
-
-// Board flip: black(1) and brown(3) see flipped board
+ 
+// Is it my turn? (I control the current turn's color)
+function isMyActualTurn() {
+  if(!gameState) return false;
+  const ci = currentTurn();
+  return getMyColorIndices().includes(ci);
+}
+ 
+// Board flip: black(1) and brown(3) primary color = flipped view
 function boardCoords(vr, vc) {
-  if(myColorIndex===1||myColorIndex===3) return [7-vr, 15-vc];
+  const myCI = getMyColorIndices();
+  const primary = myCI.length > 0 ? myCI[0] : 0;
+  if(primary===1||primary===3) return [7-vr, 15-vc];
   return [vr, vc];
 }
-
+ 
 function handleCellClick(vr, vc) {
   if(!gameState||gameState.winner) return;
   const [r,c] = boardCoords(vr,vc);
-  const turnPid = currentTurn();
-  const turnColors = [COLORS[turnPid]];
-  if(gameState.inherited[turnPid]) turnColors.push(gameState.inherited[turnPid]);
-  if(!isMyActualTurn()) return;
-
+  const turnCI = currentTurn();
+  const myCI = getMyColorIndices();
+  if(!myCI.includes(turnCI)) return;
+ 
+  const turnColors = [COLORS[turnCI]];
+  if(gameState.inherited[turnCI]) turnColors.push(gameState.inherited[turnCI]);
+ 
   if(selected) {
     const mv = legalMoves.find(m=>m.to[0]===r&&m.to[1]===c);
     if(mv) {
       ws.send(JSON.stringify({type:"move", from:selected, to:[r,c], castle:mv.castle||false, rookFrom:mv.rookFrom||null, rookTo:mv.rookTo||null}));
-      selected=null; legalMoves=[];
-      return;
+      selected=null; legalMoves=[]; return;
     }
     if(selected[0]===r&&selected[1]===c){selected=null;legalMoves=[];renderBoard();return;}
   }
@@ -330,12 +460,10 @@ function handleCellClick(vr, vc) {
   }
   selected=null; legalMoves=[]; renderBoard();
 }
-
+ 
 function renderBoard() {
   if(!gameState) return;
   const el = document.getElementById("board"); el.innerHTML="";
-
-  // Find which kings are in check (by enemies only)
   const checkedKings = new Set();
   COLORS.forEach((col,i) => {
     if(!gameState.eliminated[i] && isInCheck(col, gameState.board)) {
@@ -347,7 +475,6 @@ function renderBoard() {
       if(kp) checkedKings.add(kp.join(','));
     }
   });
-
   for(let vr=0;vr<8;vr++) for(let vc=0;vc<16;vc++) {
     const [r,c] = boardCoords(vr,vc);
     const cell = document.createElement("div");
@@ -375,61 +502,74 @@ function renderBoard() {
     el.appendChild(cell);
   }
 }
-
+ 
 function renderStatus() {
   if(!gameState) return;
   const dots=document.getElementById("turn-dots"); dots.innerHTML="";
-  const pid=currentTurn();
+  const ci=currentTurn();
   COLORS.forEach((_,i)=>{
     const d=document.createElement("div"); d.className="tdot";
     if(gameState.eliminated[i]) d.classList.add("dead");
-    if(i===pid) d.classList.add("active");
+    if(i===ci) d.classList.add("active");
     d.style.background=SWATCHES[i]; d.style.borderColor=SWATCH_BORDERS[i];
     d.title=COLOR_NAMES[i]; dots.appendChild(d);
   });
-  const pname=serverPlayers[pid]?serverPlayers[pid].name:COLOR_NAMES[pid];
-  let msg=`${pname} käib`;
-  if(gameState.inherited[pid]) msg+=` (+${COLOR_NAMES[COLORS.indexOf(gameState.inherited[pid])]} nupud)`;
-
-  // Check if my own king is in check
+ 
+  // Find who controls current turn
+  const controllerId = assignments[ci];
+  const controller = serverPlayers.find(p=>p.id===controllerId);
+  const pname = controller ? controller.name : COLOR_NAMES[ci];
+  let msg=`${pname} käib (${COLOR_NAMES[ci]})`;
+  if(gameState.inherited[ci]) msg+=` +${COLOR_NAMES[COLORS.indexOf(gameState.inherited[ci])]}`;
+ 
   const myColors = getMyColors();
   const myInCheck = myColors.some(col=>isInCheck(col,gameState.board));
   if(myInCheck) msg += " — ⚠️ TULI!";
   setMsg(msg);
-
-  // Pass button: only when teammate's king is in check
-  const tm = TEAMMATE[myColorIndex];
-  const bothAlive = gameState&&!gameState.eliminated[myColorIndex]&&tm>=0&&!gameState.eliminated[tm];
-  const tmColor = COLORS[tm];
-  const tmInCheck = bothAlive && isInCheck(tmColor, gameState.board);
-  const passBtn = document.getElementById("btn-pass");
-  if(isMyActualTurn() && tmInCheck) {
-    passBtn.style.display = "inline-block";
-    passBtn.textContent = `Anna käik ${COLOR_NAMES[tm]}le (tuli!)`;
+ 
+  // Pass button
+  const myCI = getMyColorIndices();
+  const curCI = currentTurn();
+  if(myCI.includes(curCI)) {
+    const tm = TEAMMATE[curCI];
+    const bothAlive = !gameState.eliminated[curCI]&&!gameState.eliminated[tm];
+    const tmInCheck = bothAlive && isInCheck(COLORS[tm], gameState.board);
+    const passBtn = document.getElementById("btn-pass");
+    if(tmInCheck) {
+      passBtn.style.display = "inline-block";
+      passBtn.textContent = `Anna käik ${COLOR_NAMES[tm]}le (tuli!)`;
+    } else {
+      passBtn.style.display = "none";
+    }
   } else {
-    passBtn.style.display = "none";
+    document.getElementById("btn-pass").style.display = "none";
   }
 }
-
+ 
 function renderPlayers() {
   if(!gameState) return;
   const row=document.getElementById("players-row"); row.innerHTML="";
-  const pid=currentTurn();
-  COLORS.forEach((_,i)=>{
+  const ci=currentTurn();
+  // Show one card per color (4 cards)
+  COLORS.forEach((col,i)=>{
+    const controllerId = assignments[i];
+    const controller = serverPlayers.find(p=>p.id===controllerId);
+    const pname = controller ? controller.name : "?";
+    const isMe = controllerId === myId;
     const card=document.createElement("div");
-    card.className="pcard"+(i===myColorIndex?" me":"")+(i===pid?" active":"")+(gameState.eliminated[i]?" dead":"");
+    card.className="pcard"+(isMe?" me":"")+(i===ci?" active":"")+(gameState.eliminated[i]?" dead":"");
     const inhIdx=gameState.inherited[i]?COLORS.indexOf(gameState.inherited[i]):-1;
-    const pname=serverPlayers[i]?serverPlayers[i].name:COLOR_NAMES[i];
-    card.innerHTML=`<div class="pcard-name"><div class="swatch" style="background:${SWATCHES[i]};border:1px solid ${SWATCH_BORDERS[i]}"></div>${pname}${gameState.eliminated[i]?' ✕':''}</div><div class="pcard-meta">${TEAMS[i]}${inhIdx>=0?` · +${COLOR_NAMES[inhIdx]}`:''}${i===myColorIndex?' · sina':''}</div>`;
+    card.innerHTML=`<div class="pcard-name"><div class="swatch" style="background:${SWATCHES[i]};border:1px solid ${SWATCH_BORDERS[i]}"></div>${COLOR_NAMES[i]}${gameState.eliminated[i]?' ✕':''}</div><div class="pcard-meta">${TEAMS[i]} · ${pname}${inhIdx>=0?` · +${COLOR_NAMES[inhIdx]}`:''}${isMe?' · sina':''}</div>`;
     row.appendChild(card);
   });
 }
-
+ 
 function setMsg(t){document.getElementById("msg").textContent=t;}
 function showOverlay(t,b){document.getElementById("ov-title").textContent=t;document.getElementById("ov-body").textContent=b;document.getElementById("overlay").classList.add("show");}
-function resetGame(){if(ws)ws.send(JSON.stringify({type:"reset"})); hasMoved={};}
+function resetGame(){if(ws&&myIsAdmin)ws.send(JSON.stringify({type:"reset"})); hasMoved={};}
 function passToTeammate(){if(ws)ws.send(JSON.stringify({type:"pass"}));}
 function copyLink(){navigator.clipboard.writeText(location.href);}
 </script>
 </body>
 </html>
+ 
