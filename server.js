@@ -208,13 +208,21 @@ if(msg.type==="start") {
     }
   });
 
-  ws.on("close",()=>{
-    const player = room.players.get(ws);
-    if(player){
-      room.players.delete(ws);
-      broadcast(room, {type:"players", players:getPlayersInfo(room), assignments:room.assignments});
-    }
-  });
+  ws.on("close", () => {
+  const player = room.players.get(ws);
+  if (player) {
+    room.players.delete(ws);
+    broadcast(room, {
+      type: "players",
+      players: getPlayersInfo(room),
+      assignments: room.assignments,
+    });
+  }
+
+  if (room.players.size === 0) {
+    rooms.delete(roomId);
+    console.log(`Room ${roomId} deleted because it became empty`);
+  }
 });
 
 server.listen(PORT,()=>console.log(`Server running on port ${PORT}`));
