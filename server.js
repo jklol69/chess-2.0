@@ -121,12 +121,28 @@ wss.on("connection",(ws,req)=>{
       broadcast(room, {type:"players", players:getPlayersInfo(room), assignments:room.assignments});
     }
 
-    if(msg.type==="assign") {
-      const player = room.players.get(ws);
-      if(!player||!player.isAdmin) return;
-      // msg.assignments = { colorIndex: playerId or null }
-      Object.assign(room.assignments, msg.assignments);
-      broadcast(room, {type:"players", players:getPlayersInfo(room), assignments:room.assignments});
+if(msg.type==="start") {
+  const player = room.players.get(ws);
+  if(!player || !player.isAdmin) return;
+
+  if (Object.keys(room.assignments).length !== 4) {
+    ws.send(JSON.stringify({
+      type: "error",
+      message: "Kõik 4 värvi peavad olema määratud enne alustamist."
+    }));
+    return;
+  }
+
+  room.gameState = createInitialState();
+  room.hasMoved = {};
+  broadcast(room, {
+    type: "start",
+    state: room.gameState,
+    hasMoved: room.hasMoved,
+    players: getPlayersInfo(room),
+    assignments: room.assignments
+  });
+}
     }
 
     if(msg.type==="start") {
