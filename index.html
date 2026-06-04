@@ -77,7 +77,6 @@
 <h1>♟ Dual Kingdom Chess</h1>
 <p class="subtitle">2v2 · 16×8 · Hele tiim vs Tume tiim</p>
 
-<!-- LOBBY -->
 <div id="lobby">
   <div id="room-info">Loo uus tuba või sisesta tuba lingi kaudu</div>
   <input id="name-input" type="text" placeholder="Sinu nimi" maxlength="16" />
@@ -86,7 +85,6 @@
   <div style="font-size:12px;color:#555;margin-top:8px">Jaga lehekülge URL-i kaudu — kõik samas toas</div>
 </div>
 
-<!-- GAME -->
 <div id="game">
   <div id="status-bar">
     <div id="turn-dots"></div>
@@ -102,7 +100,6 @@
   </div>
 </div>
 
-<!-- OVERLAY -->
 <div class="overlay" id="overlay">
   <div class="overlay-box">
     <h2 id="ov-title">Mäng läbi!</h2>
@@ -113,10 +110,8 @@
 
 <script>
 // ── CONFIG ──────────────────────────────────────────────────────
-// Pärast Render deployd asenda see oma Render URL-iga
-// Näiteks: "dual-kingdom-chess.onrender.com"
 const RENDER_HOST = "chess-2-0.onrender.com";
-const url = `wss://${RENDER_HOST}`;
+const ROOM_ID = new URLSearchParams(location.search).get("room") || "main";
 // ────────────────────────────────────────────────────────────────
 
 const COLORS = ["white","black","yellow","brown"];
@@ -147,6 +142,7 @@ function joinGame() {
 
   ws.onopen = () => ws.send(JSON.stringify({ type: "join", name }));
   ws.onmessage = e => handleServer(JSON.parse(e.data));
+  ws.onerror = () => setMsg("Viga ühenduses. Kontrolli internetti.");
   ws.onclose = () => setMsg("Ühendus katkes. Lae leht uuesti.");
 }
 
@@ -191,7 +187,6 @@ function renderWaiting() {
   }
 }
 
-// ── CHESS LOGIC (client-side for rendering + legal move calc) ──
 function inBounds(r,c){return r>=0&&r<8&&c>=0&&c<16;}
 function getRawMoves(r,c,brd){
   const piece=brd[r][c]; if(!piece)return [];
@@ -214,16 +209,14 @@ function cloneBoard(brd){return brd.map(row=>row.map(cell=>cell?{...cell}:null))
 function getLegalMoves(r,c,brd){const piece=brd[r][c];if(!piece)return[];return getRawMoves(r,c,brd).filter(([nr,nc])=>{const nb=cloneBoard(brd);nb[nr][nc]=nb[r][c];nb[r][c]=null;return!isAttacked(piece.color,nb);});}
 function getMyColors(){if(myColorIndex<0)return[];const cols=[COLORS[myColorIndex]];const inh=gameState&&gameState.inherited[myColorIndex];if(inh)cols.push(inh);return cols;}
 function currentTurn(){if(!gameState)return -1;let idx=gameState.turnIndex%4;let t=0;while(gameState.eliminated[idx]&&t<4){idx=(idx+1)%4;t++;}return idx;}
-function isMyTurn(){return currentTurn()===myColorIndex||(gameState&&gameState.inherited[myColorIndex]&&currentTurn()===myColorIndex);}
+function isMyActualTurn(){return gameState&&currentTurn()===myColorIndex;}
 
 function handleCellClick(r,c){
   if(!gameState||gameState.winner)return;
-  const myColors=getMyColors();
   const turnPid=currentTurn();
   const turnColors=[COLORS[turnPid]];
   if(gameState.inherited[turnPid])turnColors.push(gameState.inherited[turnPid]);
-  const isMyActualTurn=turnPid===myColorIndex;
-  if(!isMyActualTurn)return;
+  if(!isMyActualTurn())return;
 
   if(selected){
     const isMove=legalMoves.some(([mr,mc])=>mr===r&&mc===c);
@@ -296,8 +289,6 @@ function renderStatus(){
     passBtn.textContent=`Anna käik ${COLOR_NAMES[tm]}le`;
   } else {passBtn.style.display="none";}
 }
-
-function isMyActualTurn(){return gameState&&currentTurn()===myColorIndex;}
 
 function renderPlayers(){
   if(!gameState)return;
