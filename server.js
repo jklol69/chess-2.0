@@ -14,7 +14,7 @@ const rooms = new Map();
 function createEmptyRoom() {
   return {
     players: new Map(),   // ws -> {name, id, isAdmin}
-    assignments: {},      // colorIndex -> playerId (0-3 -> player id)
+    assignments: {},      // colorIndex -> playerId
     gameState: null,
     hasMoved: {},
     nextId: 0,
@@ -36,6 +36,14 @@ function resetRoomState(room) {
   room.hasMoved = {};
   room.nextId = 0;
   room.adminId = null;
+}
+
+function pruneRoom(room) {
+  for (const [ws] of room.players) {
+    if (ws.readyState !== 1) {
+      room.players.delete(ws);
+    }
+  }
 }
 
 function getTeammate(pid) {
@@ -71,9 +79,9 @@ function createInitialState() {
 function applyMove(state, hasMoved, from, to, castle, rookFrom, rookTo) {
   const s = JSON.parse(JSON.stringify(state));
   const hm = { ...hasMoved };
-  const piece = s.board[from[0]][from[1]];
-  const captured = s.board[to[0]][to[1]];
 
+  const piece = s.board[from[0]]?.[from[1]];
+  const captured = s.board[to[0]]?.[to[1]];
   if (!piece) return { state: s, hasMoved: hm };
 
   if (castle && rookFrom && rookTo) {
@@ -134,6 +142,7 @@ function getPlayersInfo(room) {
 }
 
 function broadcast(room, msg) {
+  pruneRoom(room);
   const str = JSON.stringify(msg);
   for (const [ws] of room.players) {
     if (ws.readyState === 1) ws.send(str);
@@ -154,9 +163,14 @@ wss.on("connection", (ws, req) => {
     }
 
     if (msg.type === "join") {
+      pruneRoom(room);
+
       if (
         room.players.size === 0 &&
-        (room.gameState || Object.keys(room.assignments).length > 0 || room.nextId !== 0 || room.adminId !== null)
+        (room.gameState ||
+          Object.keys(room.assignments).length > 0 ||
+          room.nextId !== 0 ||
+          room.adminId !== null)
       ) {
         resetRoomState(room);
       }
@@ -351,8 +365,9 @@ wss.on("connection", (ws, req) => {
       });
     }
 
+    pruneRoom(room);
+
     if (room.players.size === 0) {
-      resetRoomState(room);
       rooms.delete(roomId);
       console.log(`Room ${roomId} deleted because it became empty`);
     }
