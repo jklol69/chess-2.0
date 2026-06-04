@@ -31,7 +31,7 @@
   .cell { width: 46px; height: 46px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; }
   .cell.L { background: #f0d9b5; }
   .cell.D { background: #b58863; }
-  .cell.SEP { border-right: 3px solid #444; }
+
   .cell.sel { background: #5aa85a !important; }
   .cell.mv::after { content:''; width:13px; height:13px; background:rgba(0,0,0,0.22); border-radius:50%; position:absolute; pointer-events:none; }
   .cell.mv.hp::after { display:none; }
@@ -40,9 +40,8 @@
   .cell.castle-hint { background: rgba(80,140,220,0.45) !important; }
   .piece { font-size: 28px; line-height: 1; pointer-events: none; position: relative; z-index: 1; }
   .piece-wrap { position: relative; display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; }
-  /* Piece bg circles for visibility */
-  .piece-wrap.white { background: radial-gradient(circle, rgba(255,255,255,0.92) 55%, transparent 80%); }
-  .piece-wrap.black { background: radial-gradient(circle, rgba(30,30,30,0.88) 55%, transparent 80%); }
+  .piece-wrap.white  { background: radial-gradient(circle, rgba(255,255,255,0.92) 55%, transparent 80%); }
+  .piece-wrap.black  { background: radial-gradient(circle, rgba(30,30,30,0.88) 55%, transparent 80%); }
   .piece-wrap.yellow { background: radial-gradient(circle, rgba(240,192,20,0.88) 55%, transparent 80%); }
   .piece-wrap.brown  { background: radial-gradient(circle, rgba(100,40,10,0.82) 55%, transparent 80%); }
   #players-row { display: flex; gap: 6px; width: 100%; flex-wrap: wrap; }
@@ -109,21 +108,20 @@ const COLOR_NAMES = ["Valge","Must","Kollane","Pruun"];
 const TEAMS = ["Hele tiim","Tume tiim","Hele tiim","Tume tiim"];
 const SWATCHES = ["#f0f0f0","#333","#f0c030","#8B4513"];
 const SWATCH_BORDERS = ["#aaa","#888","#b8960a","#3a1a00"];
+// Team mates: white(0)<->yellow(2), black(1)<->brown(3)
+const TEAMMATE = [2,3,0,1];
 
-// Unicode pieces: index 0=white set, 1=black set
-// We use white unicode glyphs for white+yellow (light bg), black unicode for black+brown (dark bg)
 const PIECE_GLYPHS = {
   white: {K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙"},
   black: {K:"♚",Q:"♛",R:"♜",B:"♝",N:"♞",P:"♟"},
   yellow:{K:"♔",Q:"♕",R:"♖",B:"♗",N:"♘",P:"♙"},
   brown: {K:"♚",Q:"♛",R:"♜",B:"♝",N:"♞",P:"♟"},
 };
-// Text color per piece color
 const PIECE_COLOR_CSS = {
-  white:  "color:#ffffff; text-shadow: 0 0 2px #000, 0 0 4px #000;",
-  black:  "color:#111111; text-shadow: 0 0 2px #fff9, 0 0 4px #fff6;",
-  yellow: "color:#f5d000; text-shadow: 0 0 2px #000, 0 0 4px #000;",
-  brown:  "color:#d4956a; text-shadow: 0 0 2px #000, 0 0 4px #000;",
+  white:  "color:#ffffff;text-shadow:0 0 2px #000,0 0 4px #000;",
+  black:  "color:#111111;text-shadow:0 0 2px #fff9,0 0 4px #fff6;",
+  yellow: "color:#f5d000;text-shadow:0 0 2px #000,0 0 4px #000;",
+  brown:  "color:#d4956a;text-shadow:0 0 2px #000,0 0 4px #000;",
 };
 
 let ws = null;
@@ -131,10 +129,8 @@ let myColorIndex = -1;
 let gameState = null;
 let serverPlayers = [null,null,null,null];
 let selected = null;
-let legalMoves = []; // {to:[r,c], castle:bool}
-// Track which pieces have moved (for castling): key = "r,c" of original position
-// We track kings and rooks by their starting squares
-let hasMoved = {}; // "r,c" -> true
+let legalMoves = [];
+let hasMoved = {};
 
 function joinGame() {
   const name = document.getElementById("name-input").value.trim() || "Mängija";
@@ -171,7 +167,6 @@ function handleServer(msg) {
   if (msg.type === "state") {
     gameState = msg.state;
     serverPlayers = msg.players || serverPlayers;
-    // apply hasMoved updates from server
     if (msg.hasMoved) hasMoved = msg.hasMoved;
     selected = null; legalMoves = [];
     renderBoard(); renderPlayers(); renderStatus();
@@ -194,18 +189,38 @@ function renderWaiting() {
 function inBounds(r,c){return r>=0&&r<8&&c>=0&&c<16;}
 function cloneBoard(brd){return brd.map(row=>row.map(c=>c?{...c}:null));}
 
+// Which colors are on the same team as `color`?
+function teamColors(color) {
+  // white+yellow = team 0, black+brown = team 1
+  if (color==="white"||color==="yellow") return ["white","yellow"];
+  return ["black","brown"];
+}
+
 function getRawMoves(r, c, brd) {
   const piece = brd[r][c]; if (!piece) return [];
   const {type, color} = piece; const moves = [];
-  const enemy = (pr,pc) => brd[pr][pc] && brd[pr][pc].color !== color;
+  const myTeam = teamColors(color);
+  const blocked = (pr,pc) => brd[pr][pc] && myTeam.includes(brd[pr][pc].color);
   const empty = (pr,pc) => inBounds(pr,pc) && !brd[pr][pc];
-  const add = (pr,pc) => { if(!inBounds(pr,pc))return; if(brd[pr][pc]&&brd[pr][pc].color===color)return; moves.push([pr,pc]); };
-  const slide = (dr,dc) => { let nr=r+dr,nc=c+dc; while(inBounds(nr,nc)){if(brd[nr][nc]){if(brd[nr][nc].color!==color)moves.push([nr,nc]);break;} moves.push([nr,nc]);nr+=dr;nc+=dc; } };
+  const add = (pr,pc) => { if(!inBounds(pr,pc)) return; if(blocked(pr,pc)) return; moves.push([pr,pc]); };
+  const slide = (dr,dc) => {
+    let nr=r+dr, nc=c+dc;
+    while(inBounds(nr,nc)) {
+      if(brd[nr][nc]) { if(!myTeam.includes(brd[nr][nc].color)) moves.push([nr,nc]); break; }
+      moves.push([nr,nc]); nr+=dr; nc+=dc;
+    }
+  };
   if (type==='P') {
     const dir = (color==='white'||color==='yellow') ? -1 : 1;
     const sr  = (color==='white'||color==='yellow') ? 6 : 1;
-    if (empty(r+dir,c)) { moves.push([r+dir,c]); if(r===sr&&empty(r+2*dir,c)) moves.push([r+2*dir,c]); }
-    [-1,1].forEach(dc=>{ if(inBounds(r+dir,c+dc)&&enemy(r+dir,c+dc)) moves.push([r+dir,c+dc]); });
+    if (empty(r+dir,c)) {
+      moves.push([r+dir,c]);
+      if (r===sr && empty(r+2*dir,c)) moves.push([r+2*dir,c]);
+    }
+    [-1,1].forEach(dc => {
+      if (inBounds(r+dir,c+dc) && brd[r+dir][c+dc] && !myTeam.includes(brd[r+dir][c+dc].color))
+        moves.push([r+dir,c+dc]);
+    });
   } else if(type==='N'){[[2,1],[2,-1],[-2,1],[-2,-1],[1,2],[1,-2],[-1,2],[-1,-2]].forEach(([dr,dc])=>add(r+dr,c+dc));}
   else if(type==='B'){[[1,1],[1,-1],[-1,1],[-1,-1]].forEach(([dr,dc])=>slide(dr,dc));}
   else if(type==='R'){[[1,0],[-1,0],[0,1],[0,-1]].forEach(([dr,dc])=>slide(dr,dc));}
@@ -215,61 +230,55 @@ function getRawMoves(r, c, brd) {
 }
 
 function findKing(color, brd) {
-  for(let r=0;r<8;r++) for(let c=0;c<16;c++) if(brd[r][c]&&brd[r][c].type==='K'&&brd[r][c].color===color) return [r,c];
+  for(let r=0;r<8;r++) for(let c=0;c<16;c++)
+    if(brd[r][c]&&brd[r][c].type==='K'&&brd[r][c].color===color) return [r,c];
   return null;
 }
-function isAttacked(kingColor, brd) {
-  const kp = findKing(kingColor, brd); if(!kp) return false;
+
+// Is `color`'s king attacked by an ENEMY (not teammate) piece?
+function isInCheck(color, brd) {
+  const kp = findKing(color, brd); if(!kp) return false;
+  const myTeam = teamColors(color);
   for(let r=0;r<8;r++) for(let c=0;c<16;c++) {
-    const p=brd[r][c];
-    if(p&&p.color!==kingColor) { if(getRawMoves(r,c,brd).some(([mr,mc])=>mr===kp[0]&&mc===kp[1])) return true; }
+    const p = brd[r][c];
+    if(!p || myTeam.includes(p.color)) continue; // skip own team
+    const ms = getRawMoves(r,c,brd);
+    if(ms.some(([mr,mc])=>mr===kp[0]&&mc===kp[1])) return true;
   }
   return false;
 }
 
 function getCastleMoves(r, c, brd, movedSet) {
-  // Returns list of {to:[r,kingDestC], rookFrom:[r,rc], rookTo:[r,rtc]}
   const piece = brd[r][c];
-  if (!piece || piece.type !== 'K') return [];
-  if (movedSet[`${r},${c}`]) return [];
-  if (isAttacked(piece.color, brd)) return []; // can't castle while in check
+  if(!piece||piece.type!=='K') return [];
+  if(movedSet[`${r},${c}`]) return [];
+  if(isInCheck(piece.color, brd)) return [];
   const color = piece.color;
+  const myTeam = teamColors(color);
   const result = [];
-  // Rooks on same row
-  for (let rc = 0; rc < 16; rc++) {
+  for(let rc=0;rc<16;rc++) {
     const rook = brd[r][rc];
-    if (!rook || rook.type !== 'R' || rook.color !== color) continue;
-    if (movedSet[`${r},${rc}`]) continue;
+    if(!rook||rook.type!=='R'||rook.color!==color) continue;
+    if(movedSet[`${r},${rc}`]) continue;
     const dir = rc > c ? 1 : -1;
-    // Check squares between king and rook are empty
     let clear = true;
-    for (let cc = c + dir; cc !== rc; cc += dir) {
-      if (brd[r][cc]) { clear = false; break; }
-    }
-    if (!clear) continue;
-    // King moves 2 squares toward rook; check those squares not attacked
+    for(let cc=c+dir; cc!==rc; cc+=dir) { if(brd[r][cc]){clear=false;break;} }
+    if(!clear) continue;
     const kingDest = c + 2*dir;
     const kingMid  = c + dir;
-    // Check king doesn't pass through or land on attacked square
-    const nb1 = cloneBoard(brd); nb1[r][kingMid] = nb1[r][c]; nb1[r][c] = null;
-    const nb2 = cloneBoard(brd); nb2[r][kingDest] = nb2[r][c]; nb2[r][c] = null;
-    if (isAttacked(color, nb1)) continue;
-    if (isAttacked(color, nb2)) continue;
-    // Rook lands next to king on other side
-    const rookDest = c + dir;
-    result.push({to:[r,kingDest], rookFrom:[r,rc], rookTo:[r,rookDest]});
+    const nb1=cloneBoard(brd); nb1[r][kingMid]=nb1[r][c]; nb1[r][c]=null;
+    const nb2=cloneBoard(brd); nb2[r][kingDest]=nb2[r][c]; nb2[r][c]=null;
+    if(isInCheck(color,nb1)||isInCheck(color,nb2)) continue;
+    result.push({to:[r,kingDest], rookFrom:[r,rc], rookTo:[r,c+dir]});
   }
   return result;
 }
 
+// No check filtering — moves are free, tuli is display only
 function getLegalMoves(r, c, brd, movedSet) {
   const piece = brd[r][c]; if(!piece) return [];
-  const raw = getRawMoves(r,c,brd).filter(([nr,nc])=>{
-    const nb=cloneBoard(brd); nb[nr][nc]=nb[r][c]; nb[r][c]=null;
-    return !isAttacked(piece.color,nb);
-  }).map(to=>({to, castle:false}));
-  // Add castling
-  if (piece.type==='K') {
+  const raw = getRawMoves(r,c,brd).map(to=>({to, castle:false}));
+  if(piece.type==='K') {
     getCastleMoves(r,c,brd,movedSet).forEach(cm=>raw.push({to:cm.to, castle:true, rookFrom:cm.rookFrom, rookTo:cm.rookTo}));
   }
   return raw;
@@ -277,10 +286,11 @@ function getLegalMoves(r, c, brd, movedSet) {
 
 function getMyColors() {
   if(myColorIndex<0) return [];
-  const cols=[COLORS[myColorIndex]];
+  const cols = [COLORS[myColorIndex]];
   if(gameState&&gameState.inherited[myColorIndex]) cols.push(gameState.inherited[myColorIndex]);
   return cols;
 }
+
 function currentTurn() {
   if(!gameState) return -1;
   let idx=gameState.turnIndex%4, t=0;
@@ -289,15 +299,9 @@ function currentTurn() {
 }
 function isMyActualTurn(){return gameState&&currentTurn()===myColorIndex;}
 
-// Board orientation per player:
-// white(0) and yellow(2): normal (row 0 top)
-// black(1) and brown(3): flipped (row 7 top)
-function viewCoords(r, c) {
-  if (myColorIndex===1||myColorIndex===3) return [7-r, 15-c];
-  return [r, c];
-}
+// Board flip: black(1) and brown(3) see flipped board
 function boardCoords(vr, vc) {
-  if (myColorIndex===1||myColorIndex===3) return [7-vr, 15-vc];
+  if(myColorIndex===1||myColorIndex===3) return [7-vr, 15-vc];
   return [vr, vc];
 }
 
@@ -330,18 +334,24 @@ function handleCellClick(vr, vc) {
 function renderBoard() {
   if(!gameState) return;
   const el = document.getElementById("board"); el.innerHTML="";
-  const checkedColors=[];
-  COLORS.forEach((col,i)=>{
-    if(!gameState.eliminated[i]&&isAttacked(col,gameState.board)) checkedColors.push(col);
-    if(gameState.inherited[i]&&!gameState.eliminated[i]&&isAttacked(gameState.inherited[i],gameState.board)) checkedColors.push(gameState.inherited[i]);
+
+  // Find which kings are in check (by enemies only)
+  const checkedKings = new Set();
+  COLORS.forEach((col,i) => {
+    if(!gameState.eliminated[i] && isInCheck(col, gameState.board)) {
+      const kp = findKing(col, gameState.board);
+      if(kp) checkedKings.add(kp.join(','));
+    }
+    if(gameState.inherited[i]&&!gameState.eliminated[i]&&isInCheck(gameState.inherited[i],gameState.board)) {
+      const kp = findKing(gameState.inherited[i], gameState.board);
+      if(kp) checkedKings.add(kp.join(','));
+    }
   });
-  const castleToSet = new Set(legalMoves.filter(m=>m.castle).map(m=>m.to.join(',')));
 
   for(let vr=0;vr<8;vr++) for(let vc=0;vc<16;vc++) {
     const [r,c] = boardCoords(vr,vc);
     const cell = document.createElement("div");
-    const light = (r+c)%2===0;
-    cell.className = "cell " + (light?"L":"D") + (c===7?" SEP":"");
+    cell.className = "cell " + ((r+c)%2===0?"L":"D");
     const isSel = selected&&selected[0]===r&&selected[1]===c;
     const mv = legalMoves.find(m=>m.to[0]===r&&m.to[1]===c);
     if(isSel) cell.classList.add("sel");
@@ -351,7 +361,7 @@ function renderBoard() {
     }
     const piece = gameState.board[r][c];
     if(piece) {
-      if(checkedColors.includes(piece.color)&&piece.type==='K') cell.classList.add("chk");
+      if(piece.type==='K' && checkedKings.has(`${r},${c}`)) cell.classList.add("chk");
       const wrap = document.createElement("div");
       wrap.className = `piece-wrap ${piece.color}`;
       const sp = document.createElement("span");
@@ -380,20 +390,25 @@ function renderStatus() {
   const pname=serverPlayers[pid]?serverPlayers[pid].name:COLOR_NAMES[pid];
   let msg=`${pname} käib`;
   if(gameState.inherited[pid]) msg+=` (+${COLOR_NAMES[COLORS.indexOf(gameState.inherited[pid])]} nupud)`;
-  const myColors=getMyColors();
-  if(myColors.some(col=>isAttacked(col,gameState.board))) msg+=" — ⚠️ TULI!";
+
+  // Check if my own king is in check
+  const myColors = getMyColors();
+  const myInCheck = myColors.some(col=>isInCheck(col,gameState.board));
+  if(myInCheck) msg += " — ⚠️ TULI!";
   setMsg(msg);
 
-  // Pass button: only show if teammate's king is in check
-  const tm = [2,3,0,1][myColorIndex];
-  const bothAlive = gameState&&!gameState.eliminated[myColorIndex]&&!gameState.eliminated[tm];
+  // Pass button: only when teammate's king is in check
+  const tm = TEAMMATE[myColorIndex];
+  const bothAlive = gameState&&!gameState.eliminated[myColorIndex]&&tm>=0&&!gameState.eliminated[tm];
   const tmColor = COLORS[tm];
-  const tmInCheck = bothAlive && isAttacked(tmColor, gameState.board);
+  const tmInCheck = bothAlive && isInCheck(tmColor, gameState.board);
   const passBtn = document.getElementById("btn-pass");
-  if(isMyActualTurn()&&tmInCheck){
-    passBtn.style.display="inline-block";
-    passBtn.textContent=`Anna käik ${COLOR_NAMES[tm]}le (tuli!)`;
-  } else { passBtn.style.display="none"; }
+  if(isMyActualTurn() && tmInCheck) {
+    passBtn.style.display = "inline-block";
+    passBtn.textContent = `Anna käik ${COLOR_NAMES[tm]}le (tuli!)`;
+  } else {
+    passBtn.style.display = "none";
+  }
 }
 
 function renderPlayers() {
