@@ -75,8 +75,8 @@ function applyMove(state, hasMoved, from, to, castle, rookFrom, rookTo) {
  
   const t0=[0,2].filter(i=>!s.eliminated[i]).length;
   const t1=[1,3].filter(i=>!s.eliminated[i]).length;
-  if(t0===0) s.winner="Tume tiim võitis! (Must + Pruun)";
-  if(t1===0) s.winner="Hele tiim võitis! (Valge + Kollane)";
+  if(t0===0) s.winner="Tume tiim v천itis! (Must + Pruun)";
+  if(t1===0) s.winner="Hele tiim v천itis! (Valge + Kollane)";
  
   return {state:s, hasMoved:hm};
 }
@@ -107,9 +107,9 @@ wss.on("connection",(ws,req)=>{
  
     if(msg.type==="join"){
       const slot=room.assignedSlots.indexOf(false);
-      if(slot===-1){ws.send(JSON.stringify({type:"error",message:"Tuba on täis (4/4)"}));return;}
+      if(slot===-1){ws.send(JSON.stringify({type:"error",message:"Tuba on t채is (4/4)"}));return;}
       room.assignedSlots[slot]=true;
-      room.players.set(ws,{name:msg.name||`Mängija ${slot+1}`,colorIndex:slot});
+      room.players.set(ws,{name:msg.name||`M채ngija ${slot+1}`,colorIndex:slot});
       ws.send(JSON.stringify({type:"joined",colorIndex:slot,colorName:COLORS[slot]}));
       broadcast(room,{type:"players",players:getPlayersInfo(room)});
       if(room.assignedSlots.every(Boolean)&&!room.gameState){
